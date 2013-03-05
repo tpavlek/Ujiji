@@ -120,6 +120,25 @@ class DB {
 	function getCategories() {
 
 	}
+
+
+    function addUser($name, $email, $pass) {
+
+        //check if name is in database
+
+        //check if email is in database
+
+        //add user
+
+    }
+
+    function login($email, $pass) {
+        // check if email is in db
+
+        // check if pass is correct
+
+        //return true/false
+    }
 	
 	/** sets the last_login field of the selected user to current date
 	 */
