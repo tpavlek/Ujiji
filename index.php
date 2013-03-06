@@ -15,14 +15,12 @@ if (!isset($_SESSION['db_user'])) {
 	$currentPage = 'user.php';
 }
 $page = new Page($_SESSION['db_url'], $_SESSION['db_user'], $_SESSION['db_pass']);
-
 ?>
 
 <html>
 	<head>
 		<title>Ujiji</title>
         <link rel='stylesheet' type='text/css' href='css/bootstrap.css' />
-        <script src='js/bootstrap.js' />
 	</head>
 	<body>
         <div class="container">
@@ -32,7 +30,7 @@ $page = new Page($_SESSION['db_url'], $_SESSION['db_user'], $_SESSION['db_pass']
                     <ul class="nav">
                         <li><a href="#">Post Ad</a></li>
                         <li><a href="#">My Ads</a></li>
-                        <form class="navbar-search pull-right" action="process.php?type=search&method=ads">
+                        <form class="navbar-search" action="process.php?type=search&method=ads">
                             <input type="text" name="search" class="search-query" placeholder="Search Ads">
                             <li class="dropdown">
                                 <a href="#" class="dropdown-toggle" data-toggle="dropdown">Type:
