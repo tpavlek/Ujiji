@@ -80,11 +80,35 @@ class DB {
 
 		return array(UserObjects);
 	}
+	
+	function getReview($rno) {
+		$query = "SELECT rno, rating, text, revieweer, reviewee, rdate
+				FROM reviews
+				WHERE rno = :rno";
+		$queryPrepared = $this->database_conn->prepare($query);
+		$queryPrepared->bindValue(:rno, $rno);
+		$queryPrepared->execute();
+		return $queryPrepared->fetch();
+	}
 
 	function getReviewsByReviewee($email) {
+			$query = "SELECT rno
+					FROM reviews
+					WHERE reviewee = :email";
+			$queryPrepared = $this->database_conn->prepare($query);
+			$queryPrepared->bindValue(:email, $email);
+			$queryPrepared->execute();
+			return $queryPrepared->fetch();
 	}
 
 	function getReviewsByReviewer($email) {
+			$query = "SELECT rno
+					FROM reviews
+					WHERE reviewer = :email";
+			$queryPrepared = $this->database_conn->prepare($query);
+			$queryPrepared->bindValue(:email, $email);
+			$queryPrepared->execute();
+			return $queryPrepared->fetch();
 	}
 
 	/** Adds a review with the appropriate data.
