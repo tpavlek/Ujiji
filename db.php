@@ -31,7 +31,7 @@ class DB {
 	
 	}
 
-	/** Searches for the keyword in both title and description
+	/** Searches for the keywords in both title and description
 	 * $page starts at index 0 and increases by increments of $PAGE_SIZE
 	 * results are ordered by date, newest first
 	 * Returns a sorted array of Ad objects 
@@ -71,8 +71,13 @@ class DB {
 	 */
 
 	function getUser($email) {
-		require_once('User.php');
-
+    $query = "SELECT name, email, last_login
+      FROM users
+      WHERE email = :email";
+    $queryPrepared = $this->database_conn->prepare($query);
+    $queryPrepared->bindValue(':email', $email);
+    $queryPrepared->execute();
+    return $queryPrepared->fetch();
 	}
 
 	function getUsersByName($name) {
