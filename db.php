@@ -19,6 +19,10 @@ class DB {
         $this->database_conn = new PDO($url, $user, $password);
     }
 
+    function getPDO() {
+        return $this->database_conn;
+    }
+
     /** Takes a string 'type' and from that checks, contextually, whether value already exists in table
      * types = 'username'
      * 		'email'
@@ -27,18 +31,19 @@ class DB {
      * returns true/false
      */
 
+
     function isInDatabase($type, $value) {
 
         switch ($type) {
             case "user":
-                $query = "SELECT email from user where email = :email";
-                $queryPrepared = $this->database_conn->prepare($query);
-                $queryPrepared->bindValue(':email', $value);
-                $queryPrepared->execute();
-                return $queryPrepared->rowCount();
+                $query = "SELECT name from users where email = '". $value ."'";
+                $queryPrepared = $this->database_conn->query($query);
+                return ($queryPrepared->fetch());
             break;
 
         }
+
+        return true;
 
     }
 
@@ -53,8 +58,9 @@ class DB {
         $query = "SELECT aid from ads
               where ";
         for ($i = 0; $i < count($keyword); $i++) {
-            $add = "(title LIKE '%:keyword%' OR desc LIKE '%:keyword%')";
-            if ($i == count($keyword) -1) {
+            $add = "(lower(title) LIKE '%" . strtolower($keyword[$i]) . "%'
+                OR lower(descr) LIKE '%" . strtolower($keyword[$i]) . "%')";
+            if ($i < count($keyword) -1) {
                 $add .= " OR ";
             }
             $query .= $add;
@@ -64,14 +70,34 @@ class DB {
         $queryPrepared = $this->database_conn->prepare($query);
         $queryPrepared->execute();
         $resultSet = $queryPrepared->fetchAll();
-
         $returnArray = array();
 
-        for ($j = $page * $PAGE_SIZE; ($j <= ($page * $PAGE_SIZE) + $PAGE_SIZE) || $j <= count($resultSet); $j++) {
-            $returnArray[] = new Ad($resultSet[$j]['aid']);
+        for ($j = $page * $PAGE_SIZE; ($j < ($page * $PAGE_SIZE) + $PAGE_SIZE) && $j < count($resultSet); $j++) {
+            $returnArray[] = new Ad($resultSet[$j]['AID'], $this);
         }
 
         return($returnArray);
+    }
+
+    function userSearch($name, $page, $PAGE_SIZE = 5) {
+        require_once('User.php');
+
+        $query = "SELECT email from users
+            where lower(name) LIKE '%". strtolower($name) . "%'
+            ORDER by name DESC";
+        $queryPrepared = $this->database_conn->prepare($query);
+        //$queryPrepared->bindValue(':name', $name);
+        $queryPrepared->execute();
+        $resultSet = $queryPrepared->fetchAll();
+
+        $returnArray = array();
+
+        for ($j = $page * $PAGE_SIZE; ($j < ($page * $PAGE_SIZE) + $PAGE_SIZE) && $j < count($resultSet); $j++) {
+            $returnArray[] = new User($resultSet[$j]['EMAIL'], $this);
+        }
+
+        return $returnArray;
+
     }
 
     /** Returns array of ad objects based on the user ID that posted it
@@ -80,8 +106,8 @@ class DB {
 
     function getUserAds($email, $page, $PAGE_SIZE = 5) {
         require_once('Ad.php');
-        $query = "SELECT aid from ads where uid = :email ORDER BY pdate DESC";
-        $queryPrepared = $this->pdo->prepare($query);
+        $query = "SELECT aid from ads where poster = :email ORDER BY pdate DESC";
+        $queryPrepared = $this->database_conn->prepare($query);
         $queryPrepared->bindValue(':email', $email);
         $queryPrepared->execute();
 
@@ -89,8 +115,8 @@ class DB {
 
         $returnArray = array();
 
-        for ($j = $page * $PAGE_SIZE; ($j <= ($page * $PAGE_SIZE) + $PAGE_SIZE) || $j <= count($resultSet); $j++) {
-            $returnArray[] = new Ad($resultSet[$j]['aid']);
+        for ($j = $page * $PAGE_SIZE; ($j < ($page * $PAGE_SIZE) + $PAGE_SIZE) && $j < count($resultSet); $j++) {
+            $returnArray[] = new Ad($resultSet[$j]['AID']);
         }
 
         return($returnArray);
@@ -101,6 +127,10 @@ class DB {
      */
 
     function deleteAd($aid) {
+        $query = "DELETE from purchases where aid = :aid";
+        $queryPrepared = $this->database_conn->prepare($query);
+        $queryPrepared->bindValue(':aid', $aid);
+        $queryPrepared->execute();
         $query = "DELETE from ads where aid = :aid";
         $queryPrepared = $this->database_conn->prepare($query);
         $queryPrepared->bindValue(':aid', $aid);
@@ -110,7 +140,7 @@ class DB {
     /** returns a list of offer objects
      */
     function getOffers() {
-        require_once('Offers.php');
+        require_once('Offer.php');
         $query = "SELECT ono from offers";
         $queryPrepared = $this->database_conn->prepare($query);
         $queryPrepared->execute();
@@ -118,16 +148,31 @@ class DB {
 
         $returnArray = array();
 
+
         foreach ($resultSet as $row) {
-            $returnArray[] = new Offer($row['ono']);
+            $returnArray[] = new Offer($row['ONO']);
         }
 
         return $returnArray;
+    }
 
+    function getOffer($ono) {
+        $query = "SELECT ndays, price from offers where ono = :ono";
+        $queryPrepared = $this->database_conn->prepare($query);
+        $queryPrepared->bindValue(':ono', $ono);
+        $queryPrepared->execute();
+        return $queryPrepared->fetch();
     }
 
 
-    function promoteAd($aid, $date, $offer) {
+    function promoteAd($aid, $offer) {
+        $query = "INSERT into purchases values(
+            (SELECT 'p' || to_char(to_number(substr(max(pur_id), 2)) +1) from purchases),
+            SYSDATE, :aid, :ono)";
+        $queryPrepared = $this->database_conn->prepare($query);
+        $queryPrepared->bindValue(':aid', $aid);
+        $queryPrepared->bindValue(':ono', $offer);
+        $queryPrepared->execute();
     }
 
     /** Returns data to fill a User object.
@@ -135,13 +180,21 @@ class DB {
      */
 
     function getUser($email) {
-        $query = "SELECT name, email, last_login
-      FROM users
-      WHERE email = :email";
+        $query = "SELECT name, last_login FROM users WHERE email = '" . $email . "'";
+        $queryPrepared = $this->database_conn->prepare($query);
+        //$queryPrepared->bindValue(':email', $email);
+        $queryPrepared->execute();
+        $result = $queryPrepared->fetch();
+        $queryPrepared->closeCursor();
+        return $result;
+    }
+
+    function getNumberOfAds($email) {
+        $query = "SELECT count(*) as NUM_ADS from ads where poster = :email";
         $queryPrepared = $this->database_conn->prepare($query);
         $queryPrepared->bindValue(':email', $email);
         $queryPrepared->execute();
-        return $queryPrepared->fetch();
+        return($queryPrepared->fetch()['NUM_ADS']);
     }
 
     function getUsersByName($name) {
@@ -157,7 +210,7 @@ class DB {
         $returnArray = array();
 
         foreach ($resultSet as $row) {
-            $returnArray[] = new User($row['email']);
+            $returnArray[] = new User($row['EMAIL']);
         }
 
         return ($resultSet);
@@ -170,6 +223,7 @@ class DB {
         $queryPrepared = $this->database_conn->prepare($query);
         $queryPrepared->bindValue(':rno', $rno);
         $queryPrepared->execute();
+        //print_r($queryPrepared->errorInfo());
         return $queryPrepared->fetch();
     }
 
@@ -177,16 +231,16 @@ class DB {
         require_once('Review.php');
         $query = "SELECT rno
 					FROM reviews
-					WHERE reviewee = :email";
+					WHERE reviewee = '". $email . "'";
         $queryPrepared = $this->database_conn->prepare($query);
-        $queryPrepared->bindValue(':email', $email);
+        //$queryPrepared->bindValue(':email', $email);
         $queryPrepared->execute();
 
         $resultSet = $queryPrepared->fetchAll();
         $returnArray = array();
 
         foreach ($resultSet as $row) {
-            $returnArray[] = new Review($row['rno']);
+            $returnArray[] = new Review($row['RNO']);
         }
 
         return $returnArray;
@@ -204,7 +258,7 @@ class DB {
         $returnArray = array();
 
         foreach ($resultSet as $row) {
-            $returnArray[] = new Review($row['rno']);
+            $returnArray[] = new Review($row['RNO']);
         }
 
 		return $returnArray;
@@ -214,22 +268,24 @@ class DB {
      * Before adding, it will find the maximum ID and increment it by one
      */
 
-    function addReview($reviewee, $reviewer, $date, $rating, $text) {
-        $query = "INSERT into reviews (rno, rating, text, reviewer, reviewee, rdate)
+    function addReview($reviewee, $reviewer, $rating, $text) {
+        $query = "INSERT INTO reviews (rno, rating, text, reviewer, reviewee, rdate)
             VALUES (
-                (SELECT (max(rno) + 1), from reviews),
+                (SELECT (max(rno) + 1) from reviews),
                 :rating,
                 :text,
                 :reviewer,
                 :reviewee,
-                :rdate)";
+                SYSDATE
+                )";
         $queryPrepared = $this->database_conn->prepare($query);
         $queryPrepared->bindValue(':rating', $rating);
         $queryPrepared->bindValue(':text', $text);
         $queryPrepared->bindValue(':reviewer', $reviewer);
         $queryPrepared->bindValue(':reviewee', $reviewee);
-        $queryPrepared->bindValue(':date', $date);
-        return ($queryPrepared->execute());
+        $result = $queryPrepared->execute();
+        //print_r($queryPrepared->errorInfo());
+        return $result;
 
     }
 
@@ -237,32 +293,36 @@ class DB {
      * aid is set automatically by selecting the max of the aid column and incrementing by one
      */
 
-    function addAd($type, $title, $price, $desc, $location, $date, $author, $cat) {
+    function addAd($type, $title, $price, $desc, $location, $author, $cat) {
+
         $query = "INSERT into ads (aid, atype, title, price, descr, location, pdate, poster, cat)
             VALUES (
-                (SELECT (max(aid) +1) from ads),
-                :type,
+                (SELECT 'a' || to_char(to_number(substr(max(aid), 2) +1)) from ads),
+                :atype,
                 :title,
                 :price,
-                :desc,
+                :descr,
                 :location,
-                :date,
+                SYSDATE,
                 :poster,
                 :cat
             )";
         $queryPrepared = $this->database_conn->prepare($query);
-        $queryPrepared->bindValue(':type', $type);
+        $queryPrepared->bindValue(':atype', $type);
         $queryPrepared->bindValue(':title', $title);
-        $queryPrepared->bindValue(':desc', $desc);
+        $queryPrepared->bindValue(':descr', $desc);
+        $queryPrepared->bindValue(':price', $price);
         $queryPrepared->bindValue(':location', $location);
-        $queryPrepared->bindValue(':date', $date);
         $queryPrepared->bindValue(':poster', $author);
         $queryPrepared->bindValue(':cat', $cat);
-        $queryPrepared->execute();
+        $result = $queryPrepared->execute();
+        //print_r($queryPrepared->errorInfo());
+        return $result;
+
     }
 
     function getAd($aid) {
-        $query = "SELECT (atype, title, price, descr, location, pdate, poster, cat) from ads
+        $query = "SELECT atype, title, price, descr, location, pdate, poster, cat from ads
             WHERE aid = :aid";
         $queryPrepared = $this->database_conn->prepare($query);
         $queryPrepared->bindValue(':aid', $aid);
@@ -277,13 +337,38 @@ class DB {
      */
 
     function getAdTypes() {
-        return array('Wanted', 'Offering');
+        return array('W', 'S');
     }
 
     /** Returns an array of arrays - each category is an array and each subcategory is
-     *  an array within
+     *  an array within.
+     * Cyclical categories WILL cause an infinite loop, and nesting is only one-level deep with this implementation
      */
     function getCategories() {
+        $query = "SELECT * from categories";
+        $queryPrepared = $this->database_conn->query($query);
+        $result = $queryPrepared->fetchAll();
+
+        $topLevelCategories = array();
+        foreach ($result as $key => $cat) {
+            if (!isset($cat['SUPERCAT'])) {
+                $topLevelCategories[$cat['CAT']] = array();
+                unset($result[$key]);
+            }
+        }
+
+        while ($result) {
+
+            foreach($result as $key => $cat) {
+                if (array_key_exists($cat['SUPERCAT'], $topLevelCategories)) {
+                    $topLevelCategories[$cat['SUPERCAT']][] = $cat['CAT'];
+                    unset($result[$key]);
+                }
+            }
+        }
+
+        return $topLevelCategories;
+
 
     }
 
@@ -294,7 +379,7 @@ class DB {
             return false;
         }
 
-        $query = "INSERT into users (name, email, pass) VALUES(
+        $query = "INSERT into users (name, email, pwd) VALUES(
             :name,
             :email,
             :pass
@@ -313,22 +398,69 @@ class DB {
             return false;
         }
 
-        $query = "SELECT email from users where email = :email AND pwd = :pass";
+        $query = "SELECT name, email FROM users where email = '" .$email . "' AND pwd = '" . $pass ."'";
         $queryPrepared = $this->database_conn->prepare($query);
-        $queryPrepared->bindValue(':email', $email);
-        $queryPrepared->bindValue(':pass', $pass);
         $queryPrepared->execute();
-        return $queryPrepared->rowCount();
+        return $queryPrepared->fetch(PDO::FETCH_ASSOC);
     }
 
     /** sets the last_login field of the selected user to current date
      */
-    function logout($email, $date) {
-        $query = "UPDATE table users set last_login = :date where email = :email";
+    function logout($email) {
+        $query = "UPDATE users set last_login = SYSDATE where email = :email";
         $queryPrepared = $this->database_conn->prepare($query);
-        $queryPrepared->bindValue(':date', $date);
         $queryPrepared->bindValue(':email', $email);
         return $queryPrepared->execute();
+    }
+
+    function getReviewsSinceLastLogin($email, $pageNum, $PAGE_SIZE = 5) {
+        require_once('Review.php');
+        $query = "SELECT rno
+            FROM reviews, users
+            where reviewee = users.email and users.email = '" . $email . "'
+            AND users.last_login < reviews.rdate
+            ORDER BY rdate DESC";
+        $queryPrepared = $this->database_conn->prepare($query);
+        $queryPrepared->execute();
+        $resultSet = $queryPrepared->fetchAll();
+
+        $returnArray = array();
+        if ($resultSet) {
+            for ($j = $pageNum * $PAGE_SIZE;
+                 ($j < ($pageNum * $PAGE_SIZE) + $PAGE_SIZE) && $j < count($resultSet) -1 ; $j++) {
+                $returnArray[] = new Review($resultSet[$j]['RNO']);
+            }
+        }
+
+        return $returnArray;
+
+    }
+
+    function getAvgRating($email) {
+        $query = "SELECT avg(rating) as AVG
+            FROM reviews
+            WHERE reviewee = '" .$email . "'";
+        $queryPrepared = $this->database_conn->prepare($query);
+        //$queryPrepared->bindValue(':email', $email);
+        $queryPrepared->execute();
+        return $queryPrepared->fetch()['AVG'];
+    }
+
+    /**
+     * Takes an AID and if the ad is on promotion, returns the number of days remaining until the promotion ends
+     * returns false otherwise
+     */
+    function isAdOnPromotion($aid) {
+        $query = "SELECT round((purchases.start_date + offers.ndays) - SYSDATE) as days_remaining
+            FROM purchases, offers
+            WHERE purchases.ono = offers.ono AND (purchases.start_date + offers.ndays) > SYSDATE
+            AND purchases.aid = :aid";
+        $queryPrepared = $this->database_conn->prepare($query);
+        $queryPrepared->bindValue(':aid', $aid);
+        $queryPrepared->execute();
+
+        return($queryPrepared->fetch()['DAYS_REMAINING']);
+
     }
 
 

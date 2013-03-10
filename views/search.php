@@ -1,13 +1,14 @@
 <?php
+require_once('fragments/Ad.php');
 
 if (!isset($_POST['search_term'])) { ?>
-  <form action="search.php" class="form-horizontal" method="POST">
+  <form action="index.php?page=search" class="form-horizontal" method="POST">
     <div class="control-group">
       <label class="control-label">Search Terms (space separated): </label>
       <div class="controls">
         <input type="text" name="search_term">
         <label class="radio">
-          <input type="radio" name="search_type" value="1" />Ad
+          <input type="radio" name="search_type" value="1" checked />Ad
         </label>
         <label class="radio">
           <input type="radio" name="search_type" value="2" />User (name)
@@ -18,7 +19,7 @@ if (!isset($_POST['search_term'])) { ?>
         <input type="hidden" value="0" name="page_num" />
       </div>
     </div>
-    <input type="text">
+    <input type="submit" class='btn btn-success' value="Search">
   </form>
 
 <?php
@@ -27,23 +28,31 @@ if (!isset($_POST['search_term'])) { ?>
     $terms = explode(" ", $_POST['search_term']);
     $resultSet = $page->getDB()->adSearch($terms, $_POST['page_num']);
     foreach ($resultSet as $ad) {
-      echo "<div class='well'>";
-      echo "<h3>" . $ad->getTitle() . "</h3>";
-      echo "<i>" . $ad->getType() . "</i>";
-      echo $ad->getPrice();
-      echo $ad->getDate();
-      echo "<a href='index.php?page=viewAd.php&aid=" . $ad->getAid() . "'>See more</a>";
-      echo "</div>";
+        $fragment = new AdFragment($ad);
+        print $fragment->getBox();
     }
+      if (count($resultSet) == 0) {
+          echo "No Ads to display";
+      }
+      if (count($resultSet) == 5) {
+          echo "<form action='index.php?page=search' method='POST'>
+            <input type='hidden' value='" . $_POST['search_term'] . "' name='search_term' />
+            <input type='hidden' value='" . $_POST['search_type'] . "' name='search_type' />
+            <input type='hidden' value='" . ($_POST['page_num'] +1) . "' name='page_num' />
+            <input type='submit' class='btn btn-primary' value='Load Next Page' />
+          </form>
+          ";
+      }
   } else if ($_POST['search_type'] == 2) {
-    $resultSet = $page->getDB()->userSearch($name, $POST['page_num']);
+    $resultSet = $page->getDB()->userSearch($_POST['search_term'], $_POST['page_num']);
+      echo count($resultSet) . " results returned on this page <br>";
     foreach ($resultSet as $user) {
-      print $user;
+      print "<a href='index.php?page=viewUser&email=". $user->getEmail() . "'>". $user->getName() . "</a><br>";
     }
 
   } else {
     if ($page->getDB()->isInDatabase("user", $_POST['search_term'])) {
-      echo "<a href='index.php?page=viewUser.php&email=" . $_POST['search_term'] . "'>View User</a>";
+      echo "<a href='index.php?page=viewUser&email=" . $_POST['search_term'] . "'>View User</a>";
     } else {
       echo "User Not Found";
     }

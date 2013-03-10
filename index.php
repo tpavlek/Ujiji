@@ -9,14 +9,25 @@ if (!isset($_SESSION['db_user'])) {
 } else if (isset($_GET['page'])) {
 	switch ($_GET['page']) {
 	case 'register': $currentPage = 'register.php'; break;
+        case 'test': $currentPage = 'test.php'; break;
+        case 'logout': $currentPage = 'logout.php'; break;
+        case 'review': $currentPage = 'review.php'; break;
+        case 'search': $currentPage = 'search.php'; break;
+        case 'viewAd': $currentPage = 'viewAd.php'; break;
+        case 'my': $currentPage = 'my.php'; break;
+        case 'user': $currentPage = 'user.php'; break;
+        case 'viewUser': $currentPage = 'viewUser.php'; break;
+        case 'createReview': $currentPage = 'createReview.php'; break;
+        case 'post': $currentPage = 'post.php'; break;
 	default: $currentPage = 'user.php'; break;
 	}
 } else {
 	$currentPage = 'user.php';
 }
 $page = new Page($_SESSION['db_url'], $_SESSION['db_user'], $_SESSION['db_pass']);
-?>
 
+?>
+<!DOCTYPE html>
 <html>
 	<head>
 		<title>Ujiji</title>
@@ -35,9 +46,12 @@ $page = new Page($_SESSION['db_url'], $_SESSION['db_user'], $_SESSION['db_pass']
                 <div class="navbar-inner">
                     <a class="brand" href="index.php">Ujiji</a>
                     <ul class="nav">
-                        <li><a href="index.php?page=post.php">Post Ad</a></li>
-                        <li><a href="index.php?page=my.php">My Ads</a></li>
-                        <li><a href="index.php?page=search.php">Search</a></li>
+                        <li><a href="index.php?page=post">Post Ad</a></li>
+                        <li><a href="index.php?page=my">My Ads</a></li>
+                        <li><a href="index.php?page=search">Search</a></li>
+                    </ul>
+                    <ul class="pull-right" style="list-style: none; padding-right:5px;">
+                      <li><a class='btn btn-danger' href='?page=logout'>Logout</a></li>
                     </ul>
                 </div>
             </div>

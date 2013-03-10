@@ -12,21 +12,37 @@ class Ad extends Page {
 	private $author;
 	private $category;
 
-	public function __construct($aid) {
-		$data = $this->db->getAd($aid);
-		$this->aid = $data['aid'];
-		$this->title = $data['title'];
-		$this->price = $data['price'];
-		$this->desc = $data['descr'];
-		$this->location = $data['location'];
-		$this->post_date = $data['pdate'];
-		$this->author = $data['poster'];
-		$this->category = $data['cat'];
+    /**
+     * We do a bit of clever passing here to avoid oracle user session limits.
+     * Normally on search we'd be instantiating a bunch of these classes quickly and filling out an array of objects
+     * Unfortunately Oracle will stop us from doing this. In most cases it works fine, but in the case of search,
+     * we need more connections so I'll pass a copy of db to this function in those specific cases
+     */
+    public function __construct($aid, $db = FALSE) {
+        if ($db) {
+            $data = $db->getAd($aid);
+        } else {
+            parent::__construct($_SESSION['db_url'], $_SESSION['db_user'], $_SESSION['db_pass']);
+            $data = $this->db->getAd($aid);
+        }
+		$this->aid = $aid;
+        $this->type = $data['ATYPE'];
+		$this->title = $data['TITLE'];
+		$this->price = $data['PRICE'];
+		$this->desc = $data['DESCR'];
+		$this->location = $data['LOCATION'];
+		$this->post_date = $data['PDATE'];
+		$this->author = $data['POSTER'];
+		$this->category = $data['CAT'];
 	}
 
 	function getAid() {
 		return $this->aid;
 	}
+
+    function getType() {
+        return $this->type;
+    }
 
 	function getTitle() {
 		return $this->title;

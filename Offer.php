@@ -6,10 +6,11 @@ class Offer extends Page {
 	private $price;
 
 	public function __construct($ono) {
+        parent::__construct($_SESSION['db_url'], $_SESSION['db_user'], $_SESSION['db_pass']);
 		$data = $this->db->getOffer($ono);
 		$this->ono = $ono;
-		$this->num_days = $data['ndays'];
-		$this->price = $data['price'];
+		$this->num_days = $data['NDAYS'];
+		$this->price = $data['PRICE'];
 	}
 
 	function getOno() {

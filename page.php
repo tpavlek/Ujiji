@@ -19,6 +19,17 @@ class Page {
   function getDate() {
     return $this->date;
   }
+    function login($name, $email) {
+        $_SESSION['name'] = $name;
+        $_SESSION['email'] = $email;
+
+    }
+
+    function logout() {
+        $this->db->logout($_SESSION['email']);
+        session_unset();
+        session_destroy();
+    }
 }
 
 ?>

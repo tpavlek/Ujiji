@@ -1,5 +1,5 @@
 <h3>Login</h3>
-<form action="#" method="POST">
+<form action="process.php?type=user&method=login" method="POST">
 	<label for="email">Email: </label>
 	<input type="text" name="email" />
 	<label for="pass">Password: </label>
@@ -8,7 +8,7 @@
 </form>
 
 <h3>Register</h3>
-<form class="form-horizontal" action="#" method="POST">
+<form class="form-horizontal" action="process.php?type=user&method=register" method="POST">
   <div class="control-group">
     <label class="control-label" for="name">Name: </label>
     <div class="controls">
