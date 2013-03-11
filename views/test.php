@@ -49,7 +49,7 @@ while ($result) {
     print($cat);
 }*/
 
-print_r($page->getDB()->getAvgRating('anna@pof.com'));
+print_r($page->getDB()->getCategories());
 
 ?>
 

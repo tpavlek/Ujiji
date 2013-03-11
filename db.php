@@ -39,7 +39,7 @@ class DB {
                 $query = "SELECT name from users where email = '". $value ."'";
                 $queryPrepared = $this->database_conn->query($query);
                 return ($queryPrepared->fetch());
-            break;
+                break;
 
         }
 
@@ -106,9 +106,9 @@ class DB {
 
     function getUserAds($email, $page, $PAGE_SIZE = 5) {
         require_once('Ad.php');
-        $query = "SELECT aid from ads where poster = :email ORDER BY pdate DESC";
+        $query = "SELECT aid from ads where poster = '". $email . "' ORDER BY pdate DESC";
         $queryPrepared = $this->database_conn->prepare($query);
-        $queryPrepared->bindValue(':email', $email);
+        //$queryPrepared->bindValue(':email', $email);
         $queryPrepared->execute();
 
         $resultSet = $queryPrepared->fetchAll();
@@ -166,6 +166,14 @@ class DB {
 
 
     function promoteAd($aid, $offer) {
+        // If there is currently a promotion, we will delete the promotion, before adding this new one.
+
+        if ($this->isAdOnPromotion($aid)) {
+            $query = "DELETE from purchases where aid = :aid";
+            $queryPrepared = $this->database_conn->prepare($query);
+            $queryPrepared->bindValue(':aid', $aid);
+            $queryPrepared->execute();
+        }
         $query = "INSERT into purchases values(
             (SELECT 'p' || to_char(to_number(substr(max(pur_id), 2)) +1) from purchases),
             SYSDATE, :aid, :ono)";
@@ -200,9 +208,9 @@ class DB {
     function getUsersByName($name) {
         require_once('User.php');
 
-        $query = "SELECT email from users where lower(name) LIKE '%:name%'";
+        $query = "SELECT email from users where lower(name) LIKE '%" .  strtolower($name) . "%'";
         $queryPrepared = $this->database_conn->prepare($query);
-        $queryPrepared->bindValue(':name', strtolower($name));
+        //$queryPrepared->bindValue(':name', strtolower($name));
         $queryPrepared->execute();
 
         $resultSet = $queryPrepared->fetchAll();
@@ -244,15 +252,15 @@ class DB {
         }
 
         return $returnArray;
-	}
+    }
 
     function getReviewsByReviewer($email) {
         $query = "SELECT rno
 					FROM reviews
 					WHERE reviewer = :email";
         $queryPrepared = $this->database_conn->prepare($query);
-		$queryPrepared->bindValue(':email', $email);
-		$queryPrepared->execute();
+        $queryPrepared->bindValue(':email', $email);
+        $queryPrepared->execute();
         $resultSet = $queryPrepared->fetchAll();
 
         $returnArray = array();
@@ -261,8 +269,8 @@ class DB {
             $returnArray[] = new Review($row['RNO']);
         }
 
-		return $returnArray;
-	}
+        return $returnArray;
+    }
 
     /** Adds a review with the appropriate data.
      * Before adding, it will find the maximum ID and increment it by one
@@ -321,6 +329,9 @@ class DB {
 
     }
 
+    /**
+     * This function grabs all the data to instantiate an AD object
+     */
     function getAd($aid) {
         $query = "SELECT atype, title, price, descr, location, pdate, poster, cat from ads
             WHERE aid = :aid";
@@ -340,6 +351,19 @@ class DB {
         return array('W', 'S');
     }
 
+    /*function orderCategories(&$sortedArray, $originalArray, $category = "") {
+        for ($i= 0; $i < count($originalArray) -1; $i++) {
+            if ($originalArray[$i]['SUPERCAT'] == $category) {
+                if (array_key_exists($category, $sortedArray)) {
+                    $sortedArray[$category][] = $originalArray[$i];
+                } else {
+                    array_push($sortedArray, $originalArray[$i]);
+                }
+                $this->orderCategories($sortedArray[$i], $originalArray, $originalArray[$i]['CAT']);
+            }
+        }
+    }
+
     /** Returns an array of arrays - each category is an array and each subcategory is
      *  an array within.
      * Cyclical categories WILL cause an infinite loop, and nesting is only one-level deep with this implementation
@@ -347,9 +371,24 @@ class DB {
     function getCategories() {
         $query = "SELECT * from categories";
         $queryPrepared = $this->database_conn->query($query);
+        /*$result = array();
+        $result[]= $queryPrepared->fetch();
+
+        while($add = $queryPrepared->fetch()) {
+            $result[] = $add;
+        }
+
+        $orderedCategories = array();
+
+        $this->orderCategories($orderedCategories, $result);
+
+
+        return $orderedCategories;*/
+
         $result = $queryPrepared->fetchAll();
 
         $topLevelCategories = array();
+
         foreach ($result as $key => $cat) {
             if (!isset($cat['SUPERCAT'])) {
                 $topLevelCategories[$cat['CAT']] = array();
@@ -443,7 +482,7 @@ class DB {
         $queryPrepared = $this->database_conn->prepare($query);
         //$queryPrepared->bindValue(':email', $email);
         $queryPrepared->execute();
-        return $queryPrepared->fetch()['AVG'];
+        return round($queryPrepared->fetch()['AVG'], 1);
     }
 
     /**

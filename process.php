@@ -13,9 +13,14 @@ if (!isset($_GET)) {
 switch($_GET['type']) {
     case 'user':
         switch($_GET['method']) {
-            case 'register': $dbInstance->addUser($_POST['name'], $_POST['email'], $_POST['pass']);
-                echo "You're registered, login now";
-                print "<br><a href='index.php'>Go Home</a>";
+            case 'register':
+                if($dbInstance->addUser($_POST['name'], $_POST['email'], $_POST['pass'])) {
+                    echo "You're registered, login now";
+                    print "<br><a href='index.php'>Go Home</a>";
+                } else {
+                    echo "Problem registering, email may already exist";
+                    print "<br><a href='index.php'>Go Home</a>";
+                }
             break;
             case 'login': $result = $dbInstance->login($_POST['email'], $_POST['pass']);
                   if ($result) {
